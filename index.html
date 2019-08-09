@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Пример: Расчет расстояния по Московской области от МКАД.</title>
+    <!-- Required meta tags --> 
+    <meta charset="utf-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <script src="https://yandex.st/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
+    <script src="https://ajax.aspnetcdn.com/ajax/jquery.templates/beta1/jquery.tmpl.js" type="text/javascript"></script>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=<your_api_key>&load=package.full&lang=ru-RU&mode=debug" type="text/javascript"></script>
+	
+    <script src="multi-geocoder.js?2228" type="text/javascript"></script>
+    <script src="distation-calculator.js?2260" type="text/javascript"></script>
+    <script src="directions-renderer.js?2228" type="text/javascript"></script>
+    <script src="directions-service.js?2228" type="text/javascript"></script>
+    <script src="delivery-zone.js?2246" type="text/javascript"></script>
+	
+
+    <script type="text/javascript">
+	
+function init() {
+	
+	let resultInfo = document.getElementById('result');
+	resultInfo.hidden = true;
+	
+	//
+    var myMap = window.map = new ymaps.Map('YMapsID', {
+            center: [55.751574, 37.573856],
+            zoom: 9,
+            behaviors: ['drag', 'scrollZoom']
+        }),
+        
+        searchOrigin = new ymaps.SuggestView('searchOrigin'),
+        
+        searchDestination = new ymaps.SuggestView('searchDestination'),
+        
+        searchOriginClear = document.getElementById('searchOriginClear'),
+        searchDestinationClear = document.getElementById('searchDestinationClear'),
+        
+        zones = [{
+            id: 'moscow',
+            name: 'Москва',
+            label: 'Маршрут по Москве',
+            color: '#0000ff',
+            url: 'moscow.json'
+        }, {
+            id: 'mo',
+            name: 'Московская область',
+            label: 'Маршрут за МКАД',
+            color: '#ff0000',
+            url: 'mo.json?16'
+        }],
+        
+        calculator = new DistationCalculator(myMap, null, zones, 'zaMkadDistation', render);
+	
+        // Вариант с заданной начальной точкой
+        // calculator = new DistationCalculator(myMap, 'Москва, Льва Толстого 18', tarifs);
+
+	
+	
+    searchOrigin.events.add('select', function (e) {
+		let item = e.get('item');
+		
+		//alert(JSON.stringify(item, null, 4));
+		
+		setPoint(item.value,'setOrigin');
+
+    });
+
+    searchDestination.events.add('select', function (e) {
+        let item = e.get('item');
+		
+		//alert(JSON.stringify(item, null, 4));
+		
+		setPoint(item.value,'setDestination');
+    });
+    
+    searchOriginClear.addEventListener(
+        'click', 
+        clearInput
+    );
+    
+    searchDestinationClear.addEventListener(
+        'click', 
+        clearInput
+    );
+
+    myMap.events.add('click', function (e) {
+        var position = e.get('coords');
+		
+		//alert(position);
+		//alert(calculator.getWaypoints().getLength());
+		
+        switch (calculator.getWaypoints().getLength()) {
+            case 0:
+                calculator.setOrigin(position);
+                break;
+            case 1:
+                calculator.setDestination(position);
+                break;
+            default:
+                calculator.clear();
+                break;
+        }
+    });
+
+
+	function setPoint(address,method){
+		// Осуществляет поиск объекта с текстом address
+		// Полученный результат сразу отображается на карте.
+		var myGeocoder = ymaps.geocode(address);
+		myGeocoder.then(function (res) {
+	
+			let firstGeoObject = res.geoObjects.get(0);
+			//map.geoObjects.add(firstGeoObject);
+			// Координаты геообъекта.
+			let point = firstGeoObject.geometry.getCoordinates();
+			//alert(point);
+			
+			switch(method){
+				case 'setOrigin':
+					calculator.setOrigin(point);
+					break;
+				case 'setDestination':
+					calculator.setDestination(point);
+					break;
+				default:
+					
+					break;
+			}
+                
+    
+		}, function (e) {
+			// Обработка ошибки.
+			alert('Ошибка: ' + e.name + ":" + e.message + "\n" + e.stack);
+		});
+	}
+	
+	 function render(results) {
+		
+		let resultInfo = document.getElementById('result'),
+		    resultRow = document.getElementById('result-row'),
+		    resultTotal = document.getElementById('result-total'),
+		    formEl = document.getElementById('calculator-form');
+		
+		resultRow.innerHTML = '';
+		
+		results.zones.forEach(function (zone) {
+			let title = document.createElement('dt'),
+				resut = document.createElement('dt');
+				
+			title.className = "col-sm-12";
+			title.innerHTML = zone.label;
+			
+			resut.className = "col-sm-12";
+			resut.innerHTML = Math.round(zone.distance/1000);
+			
+			resultRow.appendChild(title);
+			resultRow.appendChild(resut);
+		});
+		
+		resultTotal.innerHTML = `<strong>${results.total.name}:</strong> <strong>${Math.round(results.total.distance/1000)}</strong>`;
+		
+		resultInfo.hidden = false;
+		
+		scrollTo(resultInfo);
+		
+	}
+	
+	function scrollTo(element) {
+		element.scrollIntoView();
+	}
+	
+	function clearInput(event) {
+	    let btn = event.currentTarget,
+			attrName = 'data-clear-id',
+		    inputId = '',
+		    inputEl = null;
+		           
+            if (btn.hasAttribute(attrName)) {
+                inputId = btn.getAttribute(attrName);
+                inputEl = document.getElementById(inputId);
+                inputEl.value = '';
+            }
+             
+            downloadJson();
+	}
+	
+	function downloadJson() {
+	
+		const debugInfo = document.getElementById('debug-info');
+		let str = debugInfo.value;
+        
+		var file; 
+		var data = []; 
+		data.push(str); 
+	
+		var properties = {type: 'application/json'}; // Specify the file mime-type. 
+	
+		try { 
+			// Specify the filename using the File constructor, but ... 
+			file = new File(data, "file.json", properties); 
+		} catch (e) { 
+			// ... fall back to the Blob constructor if that isn't supported. 
+			file = new Blob(data, properties); 
+		} 
+		var url = URL.createObjectURL(file); 
+		document.getElementById('link').href = url;
+	}
+	
+}
+
+
+
+ymaps.ready(init);
+
+</script>
+    <style type="text/css">
+        #YMapsID {
+            width: 100%;
+            height: 520px;
+        }
+    </style>
+</head>
+
+<body>
+      
+    <div class="container">           
+        <div class="row"> 
+            
+			<div class="col-sm-12">
+				<h1>Расчет расстояния от МКАД.</h1>
+				<hr class="mb-3">
+				
+				<a id="link" target="_blank" download="file.json">Download</a>
+				
+				<div class="row">
+				<div class="col-sm-6">
+					
+					<form class="needs-validation" id="calculator-form" novalidate> 
+						<h4>Укажите адреса доставки:</h4>
+
+						<div class="form-group"> 
+							<label for="searchOrigin">Адрес отправления</label>			
+							
+							<div class="input-group"> 
+							    <input type="text" class="form-control" id="searchOrigin" autocomplete="off" aria-describedby="searchOriginHelp" placeholder=	"Введите адрес"> 
+							    <div class="input-group-append"> 
+							        <button class="btn btn-outline-secondary" type="button" id="searchOriginClear" data-clear-id="searchOrigin" title="Очистить адрес">x</button> 
+							    </div> 
+							</div>
+							
+							<small id="searchOriginHelp" class="form-text text-muted">Начните вводить адрес и вы увидите подсказки</small> 
+						</div>
+
+						<div class="form-group"> 
+							<label for="searchDestination">Адрес назначения</label> 
+							
+							<div class="input-group"> 
+							    <input type="text" class="form-control" id="searchDestination" autocomplete="off" aria-describedby="searchDestinationHelp" placeholder="Введите адрес"> 
+							    <div class="input-group-append"> 
+							        <button class="btn btn-outline-secondary" type="button" id="searchDestinationClear" data-clear-id="searchDestination" title="Очистить адрес">x</button> 
+							    </div> 
+							</div>
+							
+							<small id="searchDestinationHelp" class="form-text text-muted">Начните вводить адрес и вы увидите подсказки</small> 
+						</div>
+
+						
+        
+					</form>
+					
+					
+					
+					<!--card-->
+					<div class="card text-white bg-success mb-3 mt-5" id="result"> 
+						<div class="card-header"> Результат расчета </div> 
+
+						<div class="card-body"> 
+
+							<dl class="row" id="result-row"> 
+
+								
+
+							</dl>
+
+							<hr>
+
+							<p class="lead" id="result-total">
+								<strong>Итого:</strong> <strong></strong> 
+							</p>
+
+						</div> 
+					</div>
+					<!--/.card-->
+					
+				</div>
+				<div class="col-sm-6"> 			
+			
+					<h4>Или отметьте точки на карте:</h4>
+					<div id="YMapsID" class="span8"></div>
+				
+				</div>
+				</div>
+
+			</div>
+<div class="col-sm-12">
+    
+
+
+	<div id="sidebar" class="span4"></div>
+	<textarea id="debug-info" style="width:100%;" rows="15"></textarea>
+
+</div>
+</div>
+
+</div>
+            
+            
+             
+
+    
+</body>
+</html>
