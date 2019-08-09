@@ -1,1 +1,1 @@
-# yandex-maps-distation-calcuuulator
+# yandex-maps-distation-calculator
