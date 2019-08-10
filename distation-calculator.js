@@ -61,6 +61,8 @@ DistationCalculator.prototype = {
     
     
     getDirections: function (origin, destination) {
+        let handler = this._onRouteSuccess.bind(this);
+        
         if(origin && destination) {
 			
 			//alert('DeliveryCalculator.getDirections');
@@ -68,7 +70,7 @@ DistationCalculator.prototype = {
             this._routeService.route({
                 origin: origin,
                 destination: destination
-            }, $.proxy(this._onRouteSuccess, this));
+            }, handler);
         }
     },
     
